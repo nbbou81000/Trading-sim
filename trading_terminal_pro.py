@@ -30,7 +30,6 @@ from datetime import datetime, timedelta
 import io
 import random
 import math
-from streamlit_autorefresh import st_autorefresh
 
 # ══════════════════════════════════════════════════════════════════════════════
 # § 1 · PAGE CONFIGURATION (must be first Streamlit call)
@@ -1509,12 +1508,26 @@ carried interest on managed accounts, long-term incentive plans (LTIP), and rest
 # § 15 · MAIN APPLICATION LAYOUT
 # ══════════════════════════════════════════════════════════════════════════════
 def main() -> None:
-    # ── Auto-refresh ─────────────────────────────────────────────────────────
-    # Interval is user-configurable via sidebar (default 15s).
-    # Quote cache TTL matches the interval → fresh data on every cycle.
-    # JS clock updates every second independently (no Streamlit rerun needed).
+    # ── Auto-refresh via JS (no external package) ────────────────────────────
+    # A hidden JS snippet reloads the page at the configured interval.
+    # st.session_state["refresh_count"] is incremented manually each run.
     _interval_ms = st.session_state.get("refresh_interval_ms", 15_000)
-    refresh_count = st_autorefresh(interval=_interval_ms, limit=None, key="market_refresh")
+    if "refresh_count" not in st.session_state:
+        st.session_state["refresh_count"] = 0
+    st.session_state["refresh_count"] += 1
+    refresh_count = st.session_state["refresh_count"]
+    # Inject JS reload timer — replaces itself each Streamlit run
+    st.markdown(
+        f'''<script>
+(function(){{
+  if(window._refreshTimer){{clearTimeout(window._refreshTimer);}}
+  window._refreshTimer = setTimeout(function(){{
+    window.location.reload();
+  }}, {_interval_ms});
+}})();
+</script>''',
+        unsafe_allow_html=True,
+    )
 
     inject_css()
     render_topbar()
