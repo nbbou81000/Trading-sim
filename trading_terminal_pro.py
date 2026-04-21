@@ -831,10 +831,10 @@ def build_chart(ticker: str, period: str) -> go.Figure:
     ), row=1, col=1)
 
     # Bollinger Bands
-    fig.add_trace(go.Scatter(x=df.index, y=bb_up, line=dict(color="#00d4ff1a", width=1),
+    fig.add_trace(go.Scatter(x=df.index, y=bb_up, line=dict(color="rgba(0,212,255,0.12)", width=1),
                              showlegend=False, hoverinfo="skip"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=bb_dn, line=dict(color="#00d4ff1a", width=1),
-                             fill="tonexty", fillcolor="#00d4ff07", showlegend=False, hoverinfo="skip"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=bb_dn, line=dict(color="rgba(0,212,255,0.12)", width=1),
+                             fill="tonexty", fillcolor="rgba(0,212,255,0.04)", showlegend=False, hoverinfo="skip"), row=1, col=1)
 
     # SMA lines
     fig.add_trace(go.Scatter(x=df.index, y=sma20, line=dict(color="#ffd700", width=1, dash="dot"),
@@ -854,11 +854,11 @@ def build_chart(ticker: str, period: str) -> go.Figure:
 
     # ── RSI ──
     fig.add_trace(go.Scatter(x=df.index, y=rsi, line=dict(color="#00d4ff", width=1.5),
-                             showlegend=False, fill="tozeroy", fillcolor="#00d4ff0a"), row=3, col=1)
+                             showlegend=False, fill="tozeroy", fillcolor="rgba(0,212,255,0.04)"), row=3, col=1)
     fig.add_hline(y=70, line=dict(color="#ff3355", width=0.8, dash="dot"), row=3, col=1)
     fig.add_hline(y=30, line=dict(color="#00ff88", width=0.8, dash="dot"), row=3, col=1)
-    fig.add_hrect(y0=70, y1=100, fillcolor="#ff335508", line_width=0, row=3, col=1)
-    fig.add_hrect(y0=0,  y1=30,  fillcolor="#00ff8808", line_width=0, row=3, col=1)
+    fig.add_hrect(y0=70, y1=100, fillcolor="rgba(255,51,85,0.03)",   line_width=0, row=3, col=1)
+    fig.add_hrect(y0=0,  y1=30,  fillcolor="rgba(0,255,136,0.03)",   line_width=0, row=3, col=1)
 
     # ── Layout ──
     BG  = "#0a0e14"
