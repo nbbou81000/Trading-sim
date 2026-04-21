@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 import io
 import random
 import math
+from streamlit_autorefresh import st_autorefresh
 
 # ══════════════════════════════════════════════════════════════════════════════
 # § 1 · PAGE CONFIGURATION (must be first Streamlit call)
@@ -378,9 +379,9 @@ init_session()
 # ══════════════════════════════════════════════════════════════════════════════
 # § 5 · DATA ENGINE (cached yfinance layer)
 # ══════════════════════════════════════════════════════════════════════════════
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=15, show_spinner=False)
 def fetch_quote(ticker: str) -> dict:
-    """Fetch current price, change, pct change. Cached 60s."""
+    """Fetch current price, change, pct change. Cached 15s for near-realtime."""
     try:
         t = yf.Ticker(ticker)
         hist = t.history(period="5d", interval="1d")
@@ -403,9 +404,9 @@ def fetch_quote(ticker: str) -> dict:
         return {}
 
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def fetch_ohlcv(ticker: str, period: str = "3mo") -> pd.DataFrame:
-    """Fetch OHLCV candles for chart. Cached 2 min."""
+    """Fetch OHLCV candles for chart. Cached 60s."""
     try:
         t = yf.Ticker(ticker)
         df = t.history(period=period, interval="1d")
@@ -926,9 +927,9 @@ def pnl_color(v: float) -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def render_topbar() -> None:
-    now  = datetime.now().strftime("%H:%M:%S")
-    date = datetime.now().strftime("%A %d %B %Y").upper()
-    metrics = compute_portfolio_metrics()
+    date     = datetime.now().strftime("%A %d %B %Y").upper()
+    last_upd = datetime.now().strftime("%H:%M:%S")
+    metrics  = compute_portfolio_metrics()
     nav_delta = metrics["nav"] - INITIAL_CAPITAL
     nav_col   = pnl_color(nav_delta)
     st.markdown(f"""
@@ -944,12 +945,27 @@ def render_topbar() -> None:
       <span style="color:{nav_col};font-size:0.82rem;font-weight:700;margin:0 8px">${metrics['nav']:,.0f}</span>
       <span style="color:{nav_col};font-size:0.68rem">{f_usd(nav_delta)} ({nav_delta/INITIAL_CAPITAL*100:+.2f}%)</span>
     </div>
+    <div style="color:#3a5f7a;font-size:0.55rem;margin-top:1px">
+      QUOTES: 15s REFRESH · LAST PULL: {last_upd}
+    </div>
   </div>
   <div>
-    <div class="t-clock">{now}</div>
+    <div class="t-clock" id="live-clock">--:--:--</div>
     <div class="t-date">{date}</div>
   </div>
 </div>
+<script>
+(function(){{
+  function pad(n){{return n<10?'0'+n:''+(n);}}
+  function tick(){{
+    var d=new Date();
+    var t=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+    var el=document.getElementById('live-clock');
+    if(el){{el.textContent=t;}}
+  }}
+  tick(); setInterval(tick,1000);
+}})();
+</script>
 """, unsafe_allow_html=True)
 
 
@@ -1493,6 +1509,13 @@ carried interest on managed accounts, long-term incentive plans (LTIP), and rest
 # § 15 · MAIN APPLICATION LAYOUT
 # ══════════════════════════════════════════════════════════════════════════════
 def main() -> None:
+    # ── Auto-refresh ─────────────────────────────────────────────────────────
+    # Interval is user-configurable via sidebar (default 15s).
+    # Quote cache TTL matches the interval → fresh data on every cycle.
+    # JS clock updates every second independently (no Streamlit rerun needed).
+    _interval_ms = st.session_state.get("refresh_interval_ms", 15_000)
+    refresh_count = st_autorefresh(interval=_interval_ms, limit=None, key="market_refresh")
+
     inject_css()
     render_topbar()
 
@@ -1605,6 +1628,23 @@ def main() -> None:
             import time as _time
             _time.sleep(60)
             st.rerun()
+
+        st.markdown("---")
+        st.markdown("**LIVE REFRESH**")
+        refresh_opt = st.selectbox(
+            "Refresh interval",
+            ["5s", "10s", "15s", "30s", "60s"],
+            index=2, key="refresh_sel"
+        )
+        interval_map = {"5s": 5_000, "10s": 10_000, "15s": 15_000, "30s": 30_000, "60s": 60_000}
+        st.session_state["refresh_interval_ms"] = interval_map[refresh_opt]
+
+        # Show refresh counter as heartbeat
+        st.markdown(
+            f'<div style="color:#3a5f7a;font-size:0.6rem;margin-top:4px">'
+            f'<span class="live-dot"></span>CYCLE #{refresh_count} · {refresh_opt} interval</div>',
+            unsafe_allow_html=True
+        )
 
         st.markdown("---")
         st.markdown("**ACCOUNT CONTROLS**")
